@@ -70,7 +70,7 @@ public:
     }
 
     /**
-     * starts each ROSThreadObj thread with a matching thread entry function
+     * starts each ROSThreadObj thread with matching thread entry function
      * then joins all threads to the main thread in order
      * @return: true if success, false if failure
      */
