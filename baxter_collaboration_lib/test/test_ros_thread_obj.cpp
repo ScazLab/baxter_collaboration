@@ -5,18 +5,23 @@
 
 using namespace std;
 
+/**
+ * the purpose of this class is to provide an object that can contain multiple ROSThreadObj
+ * as well as thread functions, and observe their combined effect on a shared variable
+ */
 class ROSThreadObjTest
 {
 private:
-    std::shared_ptr<int> var;
-    std::vector<ROSThreadObj> threads;
-    std::vector<void *(*)(void *)> functions; // <out_type(*)(param_types)>
+    std::shared_ptr<int> var; // shared_ptr of an integer (to be modified by different threads)
+    std::vector<ROSThreadObj> threads; // a vector of ROSThreadObj to accept thread entry functions
+    std::vector<void *(*)(void *)> functions; // a vector of thread entry functions
 public:
     /**
-     * Constructors
-     * @param var_value: value of shared pointer var
-     * @param threads_no: no of threads
-     *
+     * constructors
+     * @param var_value: value of shared_ptr var
+     * @param threads_no: number of threads in the threads vector
+     * the default constructor creates an object with var_value==0 and threads_no==0
+     * both these arguments can be specified using the custom constructor
      */
     ROSThreadObjTest(): var(std::make_shared<int>(0)) {}
     ROSThreadObjTest(int var_value, int threads_no): var(std::make_shared<int>(var_value))
@@ -28,7 +33,7 @@ public:
     }
 
     /**
-     * Adds a specified number (one by default) threads to the function
+     * pushes a specified number (one by default) of threads onto the threads vector
      * @param threads_no: number of threads to add
      */
     void add_thread(int threads_no=1)
@@ -40,16 +45,16 @@ public:
     }
 
     /**
-     * add a function to the functions vector
-     * @param func: the pointer to a function
+     * pushes a specified function onto the functions vector
+     * @param func: the pointer to a thread entry function
      */
-    void add_function(void *(* func)(void *))
+    void add_function(void *(* func)(void *)) // accepts functions with void* input and output
     {
         functions.push_back(func);
     }
 
     /**
-    * returns the value of the shared ptr
+    * @return: the value pointed to by the shared_ptr var
     */
     int var_value()
     {
@@ -57,7 +62,7 @@ public:
     }
 
     /**
-    * returns the use count of the shared ptr
+    * @return: the reference/use count of the shared_ptr
     */
     int var_count()
     {
@@ -65,22 +70,36 @@ public:
     }
 
     /**
-     * starts each ROSThreadObj thread with a matching function in order
-     * then joins threads in order
-     * @return true if success, false if failure
+     * starts each ROSThreadObj thread with a matching thread entry function
+     * then joins all threads to the main thread in order
+     * @return: true if success, false if failure
      */
     bool start_threads()
     {
+        // condition to check each thread can be matched to a thread entry function
         if(threads.size() != functions.size())
         {
             return false;
         }
 
+        // each thread is started with a corresponding thread entry function
         for(int i=0, size=threads.size(); i < size; i++)
         {
+            // the raw_ptr is retrieved from the shared_ptr for casting (according to pthread specs)
+            // and sent to the thread entry function
             threads[i].start(functions[i], static_cast<void*>(var.get()));
         }
 
+        return true;
+    }
+
+    /**
+     * joins each of the started threads to the main thread in order
+     * @return: true if success, false if failure
+     */
+    bool join_threads()
+    {
+        // each thread is joined to the main thread in order
         for(int i=0, size=threads.size(); i < size; i++)
         {
             threads[i].join();
@@ -90,9 +109,23 @@ public:
     }
 
     /**
-     * Provides useful output
+     * kills all running threads
+     * @return: true if success, false if failure
      */
-    void debugger()
+    bool kill_threads()
+    {
+        for(int i=0, size=threads.size(); i < size; i++)
+        {
+            threads[i].kill();
+        }
+
+        return true;
+    }
+
+    /**
+     * Provides useful output for debugging
+     */
+    void test_info()
     {
         cout << "This ROSThreadObjTest object's address is: " << this << endl;
         cout << "### VAR INFO ###" << endl;
@@ -111,8 +144,8 @@ public:
 };
 
 /**
- * thread entry function that prints var
- * @param var: the value of the shared ptr
+ * thread entry function that prints the value of var
+ * @param var: the value pointed to by shared_ptr var
  */
 void* print_var(void* var)
 {
@@ -122,19 +155,8 @@ void* print_var(void* var)
 }
 
 /**
- * thread entry function that adds 1 to var
- * @param var: the value of the shared ptr
- */
-void* one_adder(void* var)
-{
-    auto var_instance = static_cast<int*>(var);
-    *var_instance = *var_instance + 1;
-    return (void*) 1;
-}
-
-/**
- * thread entry function that adds 1 to var
- * @param var: the value of the shared ptr
+ * thread entry function that adds 10 to the value of var in 10 milliseconds
+ * @param var: the value pointed to by shared_ptr var
  */
 void* ten_adder(void* var)
 {
@@ -147,22 +169,101 @@ void* ten_adder(void* var)
     return (void*) 1;
 }
 
-TEST(ROSThreadTest, testSingleThread)
+/**
+ * thread entry function that multiplies the value of var by 10 in 20 milliseconds
+ * @param var: the value pointed to by shared_ptr var
+ */
+void* ten_multiplier(void* var)
 {
-   ROSThreadObjTest rtot(10, 0);
-   rtot.add_function(ten_adder);
-   rtot.add_thread();
-   rtot.start_threads();
-   EXPECT_EQ(20, rtot.var_value());
+    auto var_instance = static_cast<int*>(var);
+    for(int i = 0; i < 5; i++)
+    {
+        *var_instance = *var_instance * 2;
+        sleep(0.4);
+    }
+    return (void*) 1;
 }
 
-TEST(ROSThreadTest, testConcurrentThreads)
+/**
+ * thread entry function that divides the value of var by 10 in 30 milliseconds
+ * @param var: the value pointed to by shared_ptr var
+ */
+void* ten_divider(void* var)
 {
-   ROSThreadObjTest rtot(0, 2);
-   rtot.add_function(ten_adder);
-   rtot.add_function(ten_adder);
-   rtot.start_threads();
-   EXPECT_EQ(20, rtot.var_value());
+    auto var_instance = static_cast<int*>(var);
+    for(int i = 0; i < 5; i++)
+    {
+        *var_instance = *var_instance / 2;
+        sleep(0.6);
+    }
+    return (void*) 1;
+}
+
+/**
+ * thread entry function that adds 100 to the value of var in 10 seconds
+ * @param var: the value pointed to by shared_ptr var
+ */
+void* slow_hundred_adder(void* var)
+{
+    auto var_instance = static_cast<int*>(var);
+    for(int i = 0; i < 100; i++)
+    {
+        *var_instance = *var_instance + 1;
+        sleep(0.1);
+    }
+    return (void*) 1;
+}
+
+TEST(ROSThreadObjTest, testSingleThread)
+{
+    ROSThreadObjTest rtot(10, 0); // create a test object with value of var==0 and threads_no==0
+    rtot.add_function(ten_adder); // push ten_adder onto functions vector
+    rtot.add_thread(); // push a ROSThreadObj onto threads vector
+    rtot.start_threads(); // start the thread with matching function
+    rtot.join_threads(); // join the thread to the main thread
+    EXPECT_EQ(20, rtot.var_value()); // check final value of var
+}
+
+TEST(ROSThreadObjTest, testConcurrentThreads)
+{
+    ROSThreadObjTest rtot(0, 2);
+    rtot.add_function(ten_adder);
+    rtot.add_function(ten_adder);
+    rtot.start_threads();
+    rtot.join_threads();
+    EXPECT_EQ(20, rtot.var_value());
+
+    ROSThreadObjTest rtot2(1, 3);
+    rtot2.add_function(ten_multiplier);
+    rtot2.add_function(ten_divider);
+    rtot2.add_function(ten_adder);
+    rtot2.start_threads();
+    rtot2.join_threads();
+    EXPECT_EQ(11, rtot2.var_value());
+
+    ROSThreadObjTest rtot3(-50, 3);
+    rtot3.add_function(ten_divider);
+    rtot3.add_function(ten_divider);
+    rtot3.add_function(slow_hundred_adder);
+    rtot3.start_threads();
+    rtot3.join_threads();
+    EXPECT_EQ(100, rtot3.var_value());
+}
+
+TEST(ROSThreadObjTest, testWithoutJoin)
+{
+    ROSThreadObjTest rtot(0, 1);
+    rtot.add_function(slow_hundred_adder);
+    rtot.start_threads();
+    // since the threads do not join, the main thread skips ahead and prints the current value of var
+    EXPECT_EQ(0, rtot.var_value());
+
+    ROSThreadObjTest rtot2(10, 2);
+    rtot2.add_function(slow_hundred_adder);
+    rtot2.add_function(slow_hundred_adder);
+    rtot2.start_threads();
+    // since the threads do not join, the main thread skips ahead and prints the current value of var
+    EXPECT_EQ(10, rtot2.var_value());
 }
 
 // Run all the tests that were declared with TEST()

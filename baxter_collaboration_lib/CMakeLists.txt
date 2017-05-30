@@ -153,10 +153,8 @@ if(CATKIN_ENABLE_TESTING)
   target_link_libraries(test_gripper robot_interface ${catkin_LIBRARIES})
 
   ## ROS thread obj tests
-  add_rostest_gtest(test_ros_thread_obj test/test_ros_thread_obj.test
-                                         test/test_ros_thread_obj.cpp)
-  target_link_libraries(test_ros_thread_obj robot_utils ${catkin_LIBRARIES})
-
+  catkin_add_gtest(test_ros_thread_obj test/test_ros_thread_obj.cpp)
+  target_link_libraries(test_ros_thread_obj robot_utils)
 
 endif()
 
