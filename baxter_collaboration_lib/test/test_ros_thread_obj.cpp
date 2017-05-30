@@ -90,15 +90,6 @@ public:
             threads[i].start(functions[i], static_cast<void*>(var.get()));
         }
 
-        return true;
-    }
-
-    /**
-     * joins each of the started threads to the main thread in order
-     * @return: true if success, false if failure
-     */
-    bool join_threads()
-    {
         // each thread is joined to the main thread in order
         for(int i=0, size=threads.size(); i < size; i++)
         {
@@ -220,7 +211,6 @@ TEST(ROSThreadObjTest, testSingleThread)
     rtot.add_function(ten_adder); // push ten_adder onto functions vector
     rtot.add_thread(); // push a ROSThreadObj onto threads vector
     rtot.start_threads(); // start the thread with matching function
-    rtot.join_threads(); // join the thread to the main thread
     EXPECT_EQ(20, rtot.var_value()); // check final value of var
 }
 
@@ -230,7 +220,6 @@ TEST(ROSThreadObjTest, testConcurrentThreads)
     rtot.add_function(ten_adder);
     rtot.add_function(ten_adder);
     rtot.start_threads();
-    rtot.join_threads();
     EXPECT_EQ(20, rtot.var_value());
 
     ROSThreadObjTest rtot2(1, 3);
@@ -238,7 +227,6 @@ TEST(ROSThreadObjTest, testConcurrentThreads)
     rtot2.add_function(ten_divider);
     rtot2.add_function(ten_adder);
     rtot2.start_threads();
-    rtot2.join_threads();
     EXPECT_EQ(11, rtot2.var_value());
 
     ROSThreadObjTest rtot3(-50, 3);
@@ -246,24 +234,7 @@ TEST(ROSThreadObjTest, testConcurrentThreads)
     rtot3.add_function(ten_divider);
     rtot3.add_function(slow_hundred_adder);
     rtot3.start_threads();
-    rtot3.join_threads();
     EXPECT_EQ(100, rtot3.var_value());
-}
-
-TEST(ROSThreadObjTest, testWithoutJoin)
-{
-    ROSThreadObjTest rtot(0, 1);
-    rtot.add_function(slow_hundred_adder);
-    rtot.start_threads();
-    // since the threads do not join, the main thread skips ahead and prints the current value of var
-    EXPECT_EQ(0, rtot.var_value());
-
-    ROSThreadObjTest rtot2(10, 2);
-    rtot2.add_function(slow_hundred_adder);
-    rtot2.add_function(slow_hundred_adder);
-    rtot2.start_threads();
-    // since the threads do not join, the main thread skips ahead and prints the current value of var
-    EXPECT_EQ(10, rtot2.var_value());
 }
 
 // Run all the tests that were declared with TEST()
