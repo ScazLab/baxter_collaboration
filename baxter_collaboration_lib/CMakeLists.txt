@@ -155,6 +155,10 @@ if(CATKIN_ENABLE_TESTING)
   ## ROS thread obj tests
   catkin_add_gtest(test_ros_thread_obj test/test_ros_thread_obj.cpp)
   target_link_libraries(test_ros_thread_obj robot_utils)
+ 
+  ## Robot ROS thread test
+  catkin_add_gtest(test_ros_thread test/test_ros_thread.cpp)
+  target_link_libraries(test_ros_thread robot_utils)
 
   ## Robot Arm Test
   add_rostest_gtest(test_arm_ctrl test/test_arm_ctrl.test
