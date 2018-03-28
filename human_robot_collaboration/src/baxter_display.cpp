@@ -5,9 +5,12 @@
 #include <std_msgs/String.h>
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
-#include <sensor_msgs/image_encodings.h>
+#include <sensor_msgs/image_encodings.h> 
 
 #include "human_robot_collaboration_msgs/ArmState.h"
+
+#include "ros_speech2text/status.h"
+/* ros_speech2text::status msg; */ 
 
 using namespace std;
 using namespace human_robot_collaboration_msgs;
@@ -30,6 +33,8 @@ private:
     ros::Subscriber r_sub;  // Subscriber for the right arm state
     ros::Subscriber s_sub;  // Subscriber for the speech output
 
+    ros::Subscriber p_sub; // Subscriber for the status topic
+
     ArmState l_state;
     ArmState r_state;
 
@@ -45,9 +50,14 @@ private:
     int w_d;   //  width of the delimiter between sub-screens
     int w_b;   //  width of the bottom sub-screen
 
+    int listen;  // listening boolean
+    int process; // processing boolean
+
     cv::Scalar   red;
     cv::Scalar green;
     cv::Scalar  blue;
+
+    cv::Mat icon; 
 
     /**
      * Callback for the left arm state
@@ -103,6 +113,18 @@ private:
 
         displayArmStates();
     };
+
+    /* callback from status */ 
+    void statusCb(const ros_speech2text::status& msg)
+    {
+        listen  = (msg.listen  ? 1 : 0); 
+        process = (msg.process ? 1 : 0); 
+
+        if(listen) {
+            setSpeech("I listen!"); 
+        } 
+        displayArmStates(); // update display 
+    }
 
     /**
      * Callback to delete the speech from the screen (after t=speech_duration)
@@ -260,6 +282,13 @@ private:
         cv::Mat res(w_b-w_d/2,w,CV_8UC3,cv::Scalar::all(255));
         ROS_INFO_COND(print_level>=6, "Created BOTTOM image with size %i %i", res.rows, res.cols);
 
+        if(listen)
+        {
+            if(!icon.data) {puts("EMPTY");}
+
+            else {icon.copyTo(res(cv::Rect(0, 0, w_b-w_d/2, w_b-w_d/2)));}  
+        }
+
         return res;
     }
 
@@ -276,6 +305,8 @@ public:
         r_sub = nh.subscribe("/action_provider/right/state", 1, &BaxterDisplay::armStateCbR, this);
 
         s_sub = nh.subscribe("/svox_tts/speech_output",1, &BaxterDisplay::speechCb, this);
+
+        p_sub = nh.subscribe("/ros_speech2text/status_topic",1, &BaxterDisplay::statusCb, this); 
 
         nh.param<int> ("/print_level", print_level, 0);
 
@@ -309,6 +340,19 @@ public:
         ROS_INFO_COND(print_level>=1, "Speech Duration set to %g", speech_duration);
         ROS_INFO_COND(print_level>=1, "Ready!!");
     };
+
+    void imageLoad(void)
+    {
+        listen = 0; 
+        process = 0; 
+
+        std::string iconAddress = "/home/kayleigh/mic.bmp"; 
+        icon = cv::imread(iconAddress, 0); 
+
+        if (!icon.data) {
+            ROS_INFO_COND(print_level>=0, "Imread failed!"); 
+        }
+    }
 
     /**
      * Function to set the speech to a specific value
@@ -372,9 +416,11 @@ public:
 
 int main(int argc, char ** argv)
 {
-    ros::init(argc, argv, "baxter_display");
+    ros::init(argc, argv, "baxter_display"); 
 
     BaxterDisplay bd("baxter_display");
+
+    bd.imageLoad(); 
 
     ros::Duration(0.2).sleep();
     bd.displayArmStates();
@@ -382,4 +428,3 @@ int main(int argc, char ** argv)
     ros::spin();
     return 0;
 }
-
