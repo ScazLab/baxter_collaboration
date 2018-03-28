@@ -31,12 +31,17 @@
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>roscpp</build_depend>
 
+  <build_depend>ros_speech2text</build_depend>
+ 
+  <exec_depend>ros_speech2text</exec_depend>
+
   <depend>aruco</depend>
   <depend>human_robot_collaboration_lib</depend>
   <depend>cv_bridge</depend>
   <depend>image_transport</depend>
   <depend>rosconsole</depend>
   <depend>svox_tts</depend>
+  
 
   <test_depend>baxter_description</test_depend>
 

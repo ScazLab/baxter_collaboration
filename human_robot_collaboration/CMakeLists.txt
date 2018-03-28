@@ -18,6 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
              baxter_core_msgs
              cv_bridge
              image_transport
+             ros_speech2text
              rosconsole
              roscpp
              rospy
@@ -45,7 +46,7 @@ catkin_python_setup()
 catkin_package(
     INCLUDE_DIRS
     LIBRARIES
-    CATKIN_DEPENDS human_robot_collaboration_lib
+    CATKIN_DEPENDS human_robot_collaboration_lib 
 )
 
 ###########
@@ -100,6 +101,10 @@ target_link_libraries(hsv_detector                              ${catkin_LIBRARI
 target_link_libraries(modular_action_provider                   ${catkin_LIBRARIES} )
 target_link_libraries(sp_pred_action_provider                   ${catkin_LIBRARIES} )
 target_link_libraries(baxter_display            ${OpenCV_LIBS}  ${catkin_LIBRARIES} )
+
+## adding message dependencies
+
+
 
 #############
 ## Install ##
